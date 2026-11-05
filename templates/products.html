@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Products &middot; FB Auto Poster{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Products</h1>
+    <p class="muted">Stored products, in the order the generation loop cycles through them.</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('product_new') }}">Add product</a>
+  </div>
+</div>
+
+{% if products %}
+  <form id="reorder-form" method="post" action="{{ url_for('product_reorder') }}"></form>
+
+  <section class="card">
+    <div class="table-wrap">
+      <table class="stack-mobile">
+        <thead>
+          <tr>
+            <th class="thumb-col">Images</th>
+            <th>Product</th>
+            <th>Price</th>
+            <th class="sort-col">Order</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+            <tr>
+              <td data-label="Images">
+                <div class="thumbs">
+                  {% for image in product.images %}
+                    <img src="{{ url_for('uploaded_file', filename=image.path) }}" alt="{{ product.name }}">
+                  {% endfor %}
+                </div>
+              </td>
+              <td data-label="Product">
+                <strong>{{ product.name }}</strong>
+                <div class="muted small">{{ product.description|truncate(140) }}</div>
+              </td>
+              <td class="nowrap" data-label="Price">{{ product.price|fmt_price }}</td>
+              <td data-label="Order">
+                <input class="sort-input" type="number" name="sort_order_{{ product.id }}"
+                       value="{{ product.sort_order }}" form="reorder-form">
+              </td>
+              <td class="nowrap" data-label="Actions">
+                <div class="row-actions">
+                  <a class="btn small secondary" href="{{ url_for('product_edit', product_id=product.id) }}">Edit</a>
+                  <form method="post" action="{{ url_for('product_delete', product_id=product.id) }}"
+                        onsubmit="return confirm('Delete {{ product.name|e }} and its images?');">
+                    <button type="submit" class="btn small danger">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-foot">
+      <button class="btn secondary" type="submit" form="reorder-form">Save order</button>
+      <span class="muted small">Lower numbers are generated first.</span>
+    </div>
+  </section>
+{% else %}
+  <section class="card empty">
+    <p>No products yet.</p>
+    <a class="btn" href="{{ url_for('product_new') }}">Add your first product</a>
+  </section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit product' if product else 'Add product' }} &middot; FB Auto Poster{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ 'Edit product' if product else 'Add product' }}</h1>
+    <p class="muted">Name, details, price and 1&ndash;5 images. The AI drafts posts from these details.</p>
+  </div>
+</div>
+
+<section class="card">
+  <form method="post" enctype="multipart/form-data" class="stack">
+    <label>
+      <span>Name</span>
+      <input type="text" name="name" value="{{ form.name }}" required maxlength="200">
+    </label>
+
+    <label>
+      <span>Description / product details</span>
+      <textarea name="description" rows="7" placeholder="Materials, sizes, colours, delivery, anything the copy should know.">{{ form.description }}</textarea>
+    </label>
+
+    <div class="grid two">
+      <label>
+        <span>Price (optional)</span>
+        <input type="text" name="price" value="{{ form.price }}" placeholder="e.g. 1200 BDT">
+      </label>
+      <label>
+        <span>Sort order</span>
+        <input type="number" name="sort_order" value="{{ form.sort_order }}">
+      </label>
+    </div>
+
+    {% if product and product.images %}
+      <div>
+        <span class="field-label">Current images</span>
+        <div class="image-picker">
+          {% for image in product.images %}
+            <label class="image-option">
+              <img src="{{ url_for('uploaded_file', filename=image.path) }}" alt="{{ product.name }}">
+              <span><input type="checkbox" name="keep_image" value="{{ image.id }}" checked> Keep</span>
+            </label>
+          {% endfor %}
+        </div>
+        <p class="muted small">Uncheck an image to delete it when you save.</p>
+      </div>
+    {% endif %}
+
+    <label>
+      <span>{{ 'Add more images' if product else 'Images' }}</span>
+      <input type="file" name="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+    </label>
+    <p class="muted small">Up to {{ max_images }} images per product, jpg/png/webp/gif.</p>
+
+    <div class="actions">
+      <button type="submit" class="btn">{{ 'Save changes' if product else 'Create product' }}</button>
+      <a class="btn secondary" href="{{ url_for('products') }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

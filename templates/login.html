@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in - FB Auto Poster</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-body">
+  <main class="auth-wrap">
+    <div class="auth-brand">
+      <span class="logo">FB</span>
+      <span>Auto Poster</span>
+    </div>
+
+    <div class="card auth-card">
+      <h1>Sign in</h1>
+      <p class="muted">Enter your admin credentials to continue.</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flashes">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% if not admin_configured %}
+        <div class="notice">
+          No admin account is configured yet.
+          <a href="{{ url_for('setup') }}">Create the admin account</a>.
+        </div>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('login') }}" class="stack">
+        <label>
+          <span>Username</span>
+          <input type="text" name="username" value="{{ username }}" autocomplete="username"
+                 autocapitalize="none" spellcheck="false" required autofocus>
+        </label>
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+    </div>
+
+    <p class="auth-foot muted">FB Auto Poster &middot; self-hosted &middot; port 8069</p>
+  </main>
+</body>
+</html>

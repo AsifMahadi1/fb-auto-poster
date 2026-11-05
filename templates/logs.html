@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Logs &middot; FB Auto Poster{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Logs</h1>
+    <p class="muted">Last {{ limit }} lines of <code>app.log</code>. Newest line is at the bottom.</p>
+  </div>
+  <div class="actions">
+    <a class="btn secondary" href="{{ url_for('logs_download') }}" download>Download log</a>
+  </div>
+</div>
+
+<section class="card log-card">
+  <div class="log-toolbar">
+    <button type="button" class="btn small" id="log-toggle" data-paused="0">Pause auto-refresh</button>
+    <button type="button" class="btn small secondary" id="log-refresh">Refresh</button>
+    <span class="pill ok" id="log-state">LIVE &middot; every 10s</span>
+    <span class="muted small" id="log-updated">Loaded just now</span>
+  </div>
+
+  <div class="log-view" id="log-view" role="log" aria-live="polite">
+    {% if lines %}
+      {% for line in lines %}
+        <span class="log-line log-{{ line.level }}">{{ line.text }}</span>
+      {% endfor %}
+    {% else %}
+      <span class="log-line log-empty">Nothing logged yet.</span>
+    {% endif %}
+  </div>
+
+  <p class="muted small log-foot">
+    {{ log_path }} &middot; {{ (log_size / 1024)|round(1) }} KB
+    &middot; INFO normal, WARNING yellow, ERROR red
+  </p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var view = document.getElementById("log-view");
+    if (!view) { return; }
+
+    var toggle = document.getElementById("log-toggle");
+    var refreshButton = document.getElementById("log-refresh");
+    var statePill = document.getElementById("log-state");
+    var updated = document.getElementById("log-updated");
+    var dataUrl = {{ url_for('logs_data')|tojson }};
+    var INTERVAL = 10000;
+
+    var timer = null;
+    var paused = false;
+    var loading = false;
+    var firstLoad = true;
+
+    function nearBottom() {
+      return view.scrollHeight - view.scrollTop - view.clientHeight < 48;
+    }
+
+    function render(lines) {
+      var fragment = document.createDocumentFragment();
+      if (!lines.length) {
+        var empty = document.createElement("span");
+        empty.className = "log-line log-empty";
+        empty.textContent = "Nothing logged yet.";
+        fragment.appendChild(empty);
+      } else {
+        for (var i = 0; i < lines.length; i += 1) {
+          var row = document.createElement("span");
+          row.className = "log-line log-" + (lines[i].level || "info");
+          row.textContent = lines[i].text;
+          fragment.appendChild(row);
+        }
+      }
+      view.textContent = "";
+      view.appendChild(fragment);
+      view.setAttribute("data-lines", String(lines.length));
+    }
+
+    function stamp() {
+      var now = new Date();
+      updated.textContent = "Updated " + now.toLocaleTimeString();
+    }
+
+    function load(manual) {
+      if (loading) { return; }
+      loading = true;
+      if (manual && window.FBLoading) { window.FBLoading.start(refreshButton, "Refreshing\u2026"); }
+
+      fetch(dataUrl, { headers: { "Accept": "application/json" }, cache: "no-store" })
+        .then(function (response) {
+          if (!response.ok) { throw new Error("HTTP " + response.status); }
+          return response.json();
+        })
+        .then(function (data) {
+          var stick = firstLoad || nearBottom();
+          render(data.lines || []);
+          if (stick) { view.scrollTop = view.scrollHeight; }
+          firstLoad = false;
+          stamp();
+        })
+        .catch(function () {
+          updated.textContent = "Refresh failed \u2013 will retry";
+        })
+        .finally(function () {
+          loading = false;
+          if (manual && window.FBLoading) { window.FBLoading.stop(refreshButton); }
+        });
+    }
+
+    function startTimer() {
+      if (timer) { clearInterval(timer); }
+      timer = setInterval(function () { load(false); }, INTERVAL);
+    }
+
+    function applyPaused() {
+      toggle.setAttribute("data-paused", paused ? "1" : "0");
+      if (paused) {
+        toggle.textContent = "Resume auto-refresh";
+        statePill.textContent = "PAUSED";
+        statePill.className = "pill bad";
+        if (timer) { clearInterval(timer); timer = null; }
+      } else {
+        toggle.textContent = "Pause auto-refresh";
+        statePill.textContent = "LIVE \u00b7 every 10s";
+        statePill.className = "pill ok";
+        startTimer();
+      }
+    }
+
+    toggle.addEventListener("click", function () {
+      paused = !paused;
+      applyPaused();
+      if (!paused) { load(false); }
+    });
+
+    refreshButton.addEventListener("click", function () {
+      load(true);
+    });
+
+    startTimer();
+    load(false);
+
+    // Coming back via the back/forward cache should show fresh lines.
+    window.addEventListener("pageshow", function (event) {
+      if (event.persisted) { load(false); }
+    });
+  }());
+</script>
+{% endblock %}

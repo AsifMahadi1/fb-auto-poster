@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Not found &middot; FB Auto Poster{% endblock %}
+
+{% block content %}
+<section class="card empty">
+  <h1>404</h1>
+  <p class="muted">{{ message }}</p>
+  <a class="btn" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+</section>
+{% endblock %}

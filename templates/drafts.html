@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Drafts &middot; FB Auto Poster{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Drafts</h1>
+    <p class="muted">Review, edit and approve AI captions. Approved drafts publish oldest first.</p>
+  </div>
+  <div class="actions">
+    <form method="post" action="{{ url_for('trigger_generate') }}">
+      <button type="submit" class="btn secondary">Generate draft now</button>
+    </form>
+    <form method="post" action="{{ url_for('trigger_publish') }}">
+      <button type="submit" class="btn secondary">Publish next now</button>
+    </form>
+  </div>
+</div>
+
+<div class="tabs">
+  <a href="{{ url_for('drafts', status='all') }}" class="{{ 'active' if status == 'all' else '' }}">
+    All <span class="count">{{ counts.draft + counts.approved + counts.published + counts.failed }}</span>
+  </a>
+  <a href="{{ url_for('drafts', status='draft') }}" class="{{ 'active' if status == 'draft' else '' }}">
+    Drafts <span class="count">{{ counts.draft }}</span>
+  </a>
+  <a href="{{ url_for('drafts', status='approved') }}" class="{{ 'active' if status == 'approved' else '' }}">
+    Approved <span class="count">{{ counts.approved }}</span>
+  </a>
+  <a href="{{ url_for('drafts', status='published') }}" class="{{ 'active' if status == 'published' else '' }}">
+    Published <span class="count">{{ counts.published }}</span>
+  </a>
+  <a href="{{ url_for('drafts', status='failed') }}" class="{{ 'active' if status == 'failed' else '' }}">
+    Failed <span class="count">{{ counts.failed }}</span>
+  </a>
+</div>
+
+{% if posts %}
+  <div class="draft-list">
+    {% for post in posts %}
+      <section class="card draft-card">
+        <div class="card-head">
+          <div>
+            <h2>
+              #{{ post.id }}
+              <span class="badge {{ post.status }}">{{ post.status }}</span>
+            </h2>
+            <p class="muted small">
+              {{ post.product_name }} &middot; created {{ post.created_at|fmt_dt }}
+              {% if post.approved_at %}&middot; approved {{ post.approved_at|fmt_dt }}{% endif %}
+              {% if post.posted_at %}&middot; posted {{ post.posted_at|fmt_dt }}{% endif %}
+            </p>
+          </div>
+          {% if post.fb_post_id %}
+            <span class="pill ok">FB post {{ post.fb_post_id }}</span>
+          {% endif %}
+        </div>
+
+        {% if post.images %}
+          <div class="thumbs large">
+            {% for path in post.images %}
+              <img src="{{ url_for('uploaded_file', filename=path) }}" alt="Draft image">
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted small">No images &mdash; this will be published as a text post.</p>
+        {% endif %}
+
+        {% if post.status == 'failed' and post.error %}
+          <div class="error-box"><strong>Publish error:</strong> {{ post.error }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('draft_caption', post_id=post.id) }}" class="stack">
+          <input type="hidden" name="status" value="{{ status }}">
+          <label>
+            <span>Caption</span>
+            <textarea name="caption" rows="6" class="caption-input">{{ post.caption }}</textarea>
+          </label>
+          {% if post.status != 'published' %}
+            <div class="actions">
+              <button type="submit" class="btn small secondary">Save caption</button>
+            </div>
+          {% endif %}
+        </form>
+
+        <div class="row-actions draft-actions">
+          {% if post.status == 'draft' or post.status == 'failed' or post.status == 'published' %}
+            {% if post.status != 'published' %}
+              <form method="post" action="{{ url_for('draft_approve', post_id=post.id) }}">
+                <input type="hidden" name="status" value="{{ status }}">
+                <button type="submit" class="btn small">Approve</button>
+              </form>
+            {% endif %}
+          {% endif %}
+
+          {% if post.status == 'failed' %}
+            <form method="post" action="{{ url_for('draft_retry', post_id=post.id) }}">
+              <input type="hidden" name="status" value="{{ status }}">
+              <button type="submit" class="btn small">Retry publish</button>
+            </form>
+          {% endif %}
+
+          {% if post.status != 'published' %}
+            <form method="post" action="{{ url_for('draft_regenerate', post_id=post.id) }}">
+              <input type="hidden" name="status" value="{{ status }}">
+              <button type="submit" class="btn small secondary">Regenerate</button>
+            </form>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('draft_reject', post_id=post.id) }}"
+                onsubmit="return confirm('Delete draft #{{ post.id }}?');">
+            <input type="hidden" name="status" value="{{ status }}">
+            <button type="submit" class="btn small danger">
+              {{ 'Delete' if post.status == 'published' else 'Reject' }}
+            </button>
+          </form>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <section class="card empty">
+    <p>Nothing here yet.</p>
+    <p class="muted small">Drafts appear when the generation loop runs, or use “Generate draft now”.</p>
+  </section>
+{% endif %}
+{% endblock %}

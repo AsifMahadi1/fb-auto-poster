@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Settings &middot; FB Auto Poster{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Settings</h1>
+    <p class="muted">Credentials, loop intervals and the AI system prompt are stored in the local SQLite database.</p>
+  </div>
+</div>
+
+<form method="post" class="stack">
+  <section class="card">
+    <h2>Facebook Page</h2>
+    <div class="grid two">
+      <label>
+        <span>Page ID</span>
+        <input type="text" id="fb_page_id" name="fb_page_id" value="{{ settings.fb_page_id }}" placeholder="e.g. 123456789012345">
+      </label>
+      <label>
+        <span>Page Access Token</span>
+        <input type="text" id="fb_access_token" name="fb_access_token" value="{{ settings.fb_access_token }}" autocomplete="off" spellcheck="false" placeholder="EAAB...">
+      </label>
+      <label>
+        <span>Graph API version</span>
+        <input type="text" id="graph_version" name="graph_version" value="{{ settings.graph_version or 'v21.0' }}" placeholder="v21.0">
+      </label>
+    </div>
+    <div class="test-row">
+      <button type="button" class="btn secondary" data-test="fb">Test Facebook connection</button>
+      <span class="test-result" id="fb-result"></span>
+    </div>
+    <p class="muted small">The page token needs pages_manage_posts and pages_read_engagement. See README.md for how to get it.</p>
+  </section>
+
+  <section class="card">
+    <h2>AI endpoint</h2>
+    <div class="grid two">
+      <label>
+        <span>AI API Base URL</span>
+        <input type="text" id="ai_base_url" name="ai_base_url" value="{{ settings.ai_base_url }}" placeholder="https://api.openai.com/v1">
+      </label>
+      <label>
+        <span>AI API Key</span>
+        <input type="text" id="ai_api_key" name="ai_api_key" value="{{ settings.ai_api_key }}" autocomplete="off" spellcheck="false" placeholder="sk-...">
+      </label>
+      <label>
+        <span>AI model name</span>
+        <input type="text" id="ai_model" name="ai_model" value="{{ settings.ai_model }}" placeholder="gpt-4o-mini">
+      </label>
+    </div>
+    <div class="test-row">
+      <button type="button" class="btn secondary" data-test="ai">Test AI connection</button>
+      <span class="test-result" id="ai-result"></span>
+    </div>
+    <p class="muted small">Any OpenAI-compatible endpoint works; the app posts to <code>{{ settings.ai_base_url or '&lt;base url&gt;' }}/chat/completions</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Schedules &amp; caption style</h2>
+    <div class="grid two">
+      <label>
+        <span>Generate a draft every (minutes)</span>
+        <input type="number" min="1" name="generate_interval_minutes" value="{{ settings.generate_interval_minutes }}">
+      </label>
+      <label>
+        <span>Publish an approved draft every (minutes)</span>
+        <input type="number" min="1" name="publish_interval_minutes" value="{{ settings.publish_interval_minutes }}">
+      </label>
+      <label>
+        <span>Caption language</span>
+        <input type="text" name="post_language" value="{{ settings.post_language or 'Bangla' }}" placeholder="Bangla">
+      </label>
+      <label class="checkbox-label">
+        <span>Emoji</span>
+        <span class="checkbox-row">
+          <input type="checkbox" name="use_emoji" value="1" {% if settings.use_emoji == '1' %}checked{% endif %}>
+          Use emoji in generated captions
+        </span>
+      </label>
+      <label class="checkbox-label">
+        <span>Auto-approve</span>
+        <span class="checkbox-row">
+          <input type="checkbox" name="auto_approve" value="1" {% if settings.auto_approve == '1' %}checked{% endif %}>
+          Automatically approve new drafts so they are published on schedule without review
+        </span>
+      </label>
+    </div>
+    <label class="full-field">
+      <span>Custom system prompt</span>
+      <textarea name="custom_system_prompt" rows="6" spellcheck="false" placeholder="Leave empty to use the built-in copywriter instructions.">{{ settings.custom_system_prompt }}</textarea>
+    </label>
+    <p class="muted small">
+      When set, this text is sent as the AI system message instead of the default instructions.
+      The product details and the language / emoji requirements above are still sent as the user message.
+    </p>
+  </section>
+
+  <div class="actions">
+    <button type="submit" class="btn">Save settings</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var urls = {
+      ai: {{ url_for('settings_test_ai')|tojson }},
+      fb: {{ url_for('settings_test_fb')|tojson }}
+    };
+
+    function value(id) {
+      var el = document.getElementById(id);
+      return el ? el.value : "";
+    }
+
+    function runTest(kind, button) {
+      var box = document.getElementById(kind + "-result");
+      var payload = kind === "ai"
+        ? { ai_base_url: value("ai_base_url"), ai_api_key: value("ai_api_key"), ai_model: value("ai_model") }
+        : { fb_page_id: value("fb_page_id"), fb_access_token: value("fb_access_token"), graph_version: value("graph_version") };
+
+      if (button.getAttribute("data-busy") === "1") { return; }
+      box.textContent = "Testing...";
+      box.className = "test-result";
+      if (window.FBLoading) {
+        window.FBLoading.start(button, "Testing\u2026");
+      } else {
+        button.disabled = true;
+      }
+
+      fetch(urls[kind], {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then(function (response) {
+        return response.json();
+      }).then(function (data) {
+        box.textContent = data.message || (data.ok ? "OK" : "Failed");
+        box.className = "test-result " + (data.ok ? "ok" : "bad");
+      }).catch(function (error) {
+        box.textContent = "Request failed: " + error;
+        box.className = "test-result bad";
+      }).finally(function () {
+        if (window.FBLoading) {
+          window.FBLoading.stop(button);
+        } else {
+          button.disabled = false;
+        }
+      });
+    }
+
+    var buttons = document.querySelectorAll("[data-test]");
+    for (var i = 0; i < buttons.length; i += 1) {
+      buttons[i].addEventListener("click", function () {
+        runTest(this.getAttribute("data-test"), this);
+      });
+    }
+  }());
+</script>
+{% endblock %}

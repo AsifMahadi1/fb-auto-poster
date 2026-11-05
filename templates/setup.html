@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create admin account - FB Auto Poster</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-body">
+  <main class="auth-wrap">
+    <div class="auth-brand">
+      <span class="logo">FB</span>
+      <span>Auto Poster</span>
+    </div>
+
+    <div class="card auth-card">
+      <h1>Create admin account</h1>
+      <p class="muted">
+        This one-time setup secures the app. After the account is created this
+        screen can no longer be used.
+      </p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flashes">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" action="{{ url_for('setup') }}" class="stack">
+        <label>
+          <span>Username</span>
+          <input type="text" name="username" value="{{ username }}" autocomplete="username"
+                 autocapitalize="none" spellcheck="false" required autofocus>
+        </label>
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="new-password"
+                 minlength="8" required>
+          <span class="field-hint muted small">At least 8 characters.</span>
+        </label>
+        <label>
+          <span>Confirm password</span>
+          <input type="password" name="confirm_password" autocomplete="new-password"
+                 minlength="8" required>
+        </label>
+        <button class="btn" type="submit">Create account</button>
+      </form>
+    </div>
+
+    <p class="auth-foot muted">FB Auto Poster &middot; self-hosted &middot; port 8069</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FB Auto Poster{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('dashboard') }}">
+      <span class="logo">FB</span>
+      <span>Auto Poster</span>
+    </a>
+    <nav class="nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('products') }}" class="{{ 'active' if active == 'products' else '' }}">Products</a>
+      <a href="{{ url_for('drafts') }}" class="{{ 'active' if active == 'drafts' else '' }}">Drafts</a>
+      <a href="{{ url_for('logs_page') }}" class="{{ 'active' if active == 'logs' else '' }}">Logs</a>
+      <a href="{{ url_for('settings_page') }}" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
+      <form class="logout-form" method="post" action="{{ url_for('logout') }}">
+        <button class="logout-btn" type="submit">Logout</button>
+      </form>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    FB Auto Poster &middot; self-hosted &middot; port 8069
+  </footer>
+
+  <script>
+    (function () {
+      var WORKING = "Working\u2026";
+
+      function start(button, text) {
+        if (!button || button.getAttribute("data-busy") === "1") { return false; }
+        button.setAttribute("data-busy", "1");
+        button.setAttribute("data-original-html", button.innerHTML);
+        button.classList.add("is-loading");
+        button.setAttribute("aria-busy", "true");
+        button.innerHTML = '<span class="spinner" aria-hidden="true"></span>' +
+          '<span class="btn-loading-text">' + (text || WORKING) + "</span>";
+        button.disabled = true;
+        return true;
+      }
+
+      function stop(button) {
+        if (!button) { return; }
+        var original = button.getAttribute("data-original-html");
+        if (original !== null) { button.innerHTML = original; }
+        button.classList.remove("is-loading");
+        button.removeAttribute("data-busy");
+        button.removeAttribute("data-original-html");
+        button.removeAttribute("aria-busy");
+        button.disabled = false;
+      }
+
+      window.FBLoading = {
+        start: start,
+        stop: stop,
+        reset: function () {
+          var forms = document.querySelectorAll("form");
+          for (var i = 0; i < forms.length; i += 1) {
+            forms[i].removeAttribute("data-busy");
+            var buttons = forms[i].querySelectorAll("button");
+            for (var j = 0; j < buttons.length; j += 1) { stop(buttons[j]); }
+          }
+        }
+      };
+
+      // Any normal form POST (manual triggers, approve, retry, regenerate, delete,
+      // save settings, save order ...) shows a spinner and blocks a second submit.
+      document.addEventListener("submit", function (event) {
+        var form = event.target;
+        if (!form || form.tagName !== "FORM") { return; }
+        // A cancelled confirm() must not leave the button stuck in loading state.
+        if (event.defaultPrevented) { return; }
+        if (form.getAttribute("data-busy") === "1") {
+          event.preventDefault();
+          return;
+        }
+        form.setAttribute("data-busy", "1");
+
+        var submitter = event.submitter || null;
+        if (!submitter && form.id) {
+          submitter = document.querySelector('button[form="' + form.id + '"][type="submit"]');
+        }
+        if (!submitter) { submitter = form.querySelector('button[type="submit"]'); }
+        start(submitter, WORKING);
+
+        var buttons = form.querySelectorAll("button");
+        for (var i = 0; i < buttons.length; i += 1) {
+          if (buttons[i] !== submitter) { buttons[i].disabled = true; }
+        }
+      }, false);
+
+      // Browsers may restore a page from the back/forward cache mid-loading.
+      window.addEventListener("pageshow", function (event) {
+        if (event.persisted) { window.FBLoading.reset(); }
+      });
+    }());
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
